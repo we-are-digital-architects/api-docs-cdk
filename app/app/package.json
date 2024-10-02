@@ -1,0 +1,16 @@
+{
+  "name": "api-docs",
+  "version": "0.0.1",
+  "description": "Interactive API docs",
+  "main": "api-docs.js",
+  "scripts": {
+    "start": "node ./api-docs.js"
+  },
+  "author": "Nikola Horvat",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.4.5"
+  }
+}

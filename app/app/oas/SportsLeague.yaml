@@ -1,0 +1,159 @@
+openapi: 3.0.3
+info:
+  title: SportsLeague
+  description: API to retrieve players from a sports league.
+  version: 1.0.0
+servers:
+  - url: http://0.0.0.0:8080/SportsLeague
+  - url: https://api.sportsleague.com/v1
+paths:
+  /players:
+    get:
+      summary: Get a list of players
+      description: Retrieve a list of players with optional filters for team, position, and nationality.
+      parameters:
+        - in: query
+          name: team
+          schema:
+            type: string
+          description: Filter players by team name
+          example: Lakers
+        - in: query
+          name: position
+          schema:
+            type: string
+          description: Filter players by their playing position
+          example: Guard
+        - in: query
+          name: nationality
+          schema:
+            type: string
+          description: Filter players by nationality
+          example: USA
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          description: Limit the number of players returned
+          example: 5
+        - in: query
+          name: offset
+          schema:
+            type: integer
+          description: Skip the first set of results
+          example: 0
+      responses:
+        "200":
+          description: A list of players
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: LeBron James
+                        team:
+                          type: string
+                          example: Lakers
+                        position:
+                          type: string
+                          example: Forward
+                        nationality:
+                          type: string
+                          example: USA
+                        age:
+                          type: integer
+                          example: 36
+                        jersey_number:
+                          type: integer
+                          example: 23
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 100
+                      limit:
+                        type: integer
+                        example: 5
+                      offset:
+                        type: integer
+                        example: 0
+              examples:
+                example-1:
+                  summary: Response for players from Lakers
+                  value:
+                    status: success
+                    data:
+                      - id: 1
+                        name: LeBron James
+                        team: Lakers
+                        position: Forward
+                        nationality: USA
+                        age: 36
+                        jersey_number: 23
+                      - id: 2
+                        name: Anthony Davis
+                        team: Lakers
+                        position: Forward
+                        nationality: USA
+                        age: 28
+                        jersey_number: 3
+                    pagination:
+                      total: 100
+                      limit: 5
+                      offset: 0
+                example-2:
+                  summary: Response for players from the USA
+                  value:
+                    status: success
+                    data:
+                      - id: 3
+                        name: Kevin Durant
+                        team: Nets
+                        position: Forward
+                        nationality: USA
+                        age: 32
+                        jersey_number: 7
+                      - id: 4
+                        name: Kyrie Irving
+                        team: Nets
+                        position: Guard
+                        nationality: USA
+                        age: 29
+                        jersey_number: 11
+                    pagination:
+                      total: 50
+                      limit: 5
+                      offset: 0
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Invalid query parameter
+              examples:
+                error-response:
+                  summary: Invalid query parameter response
+                  value:
+                    status: error
+                    message: Invalid query parameter
