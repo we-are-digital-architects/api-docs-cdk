@@ -16,3 +16,5 @@ clean:
 	@echo 'http://{$$HOST}' > Caddyfile
 	@yq eval 'del(.services[] | select(.image == "stoplight/prism:4"))' -i ./docker-compose.yml
 	@yq eval 'del(.services.proxy.depends_on)' -i ./docker-compose.yml
+watch-ec2-logs: 
+	@watch -t -n4 tail /var/log/cloud-init-output.log

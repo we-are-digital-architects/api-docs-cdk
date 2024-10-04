@@ -4,6 +4,9 @@ import * as s3 from "aws-cdk-lib/aws-s3"
 import * as s3Deployment from "aws-cdk-lib/aws-s3-deployment"
 import * as iam from "aws-cdk-lib/aws-iam"
 import { readFileSync } from "fs"
+/* import * as s3n from "aws-cdk-lib/aws-s3-notifications"
+import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources"*/
+import * as lambda from "aws-cdk-lib/aws-lambda"
 
 export interface ApiDocsCdkStackProps extends cdk.StackProps {}
 
@@ -22,7 +25,7 @@ export class ApiDocsCdkStack extends cdk.Stack {
     props: ApiDocsCdkStackProps = {}
   ) {
     super(scope, id, props)
-    const repo = this.node.tryGetContext("REPO")
+    //const repo = this.node.tryGetContext("REPO")
 
     // Resources
     const apiDocsEc2SecurityGroup = new ec2.CfnSecurityGroup(
@@ -114,6 +117,27 @@ export class ApiDocsCdkStack extends cdk.Stack {
       }
     )
 
+    const apiDocsAppData = new s3.Bucket(this, "ApiDocsAppData", {
+      bucketName: "api-docs-app-data",
+      publicReadAccess: true,
+      blockPublicAccess: {
+        blockPublicAcls: false,
+        blockPublicPolicy: false,
+        ignorePublicAcls: false,
+        restrictPublicBuckets: false,
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    })
+
+    const apiDocsAppDataDeployment = new s3Deployment.BucketDeployment(
+      this,
+      "ApiDocsAppDataDeployment",
+      {
+        sources: [s3Deployment.Source.asset("./app")],
+        destinationBucket: apiDocsAppData,
+      }
+    )
+
     const apiDocsEc2Role = new iam.CfnRole(this, "ApiDocsEc2Role", {
       assumeRolePolicyDocument: {
         Version: "2012-10-17",
@@ -127,7 +151,7 @@ export class ApiDocsCdkStack extends cdk.Stack {
           },
         ],
       },
-      roleName: "ApiDocsEc2Role",
+      roleName: "api-docs-ec2-role",
       description: "Allows EC2 instances to call AWS services on your behalf.",
       managedPolicyArns: [
         "arn:aws:iam::aws:policy/AmazonEC2FullAccess",
@@ -137,7 +161,7 @@ export class ApiDocsCdkStack extends cdk.Stack {
       tags: [
         {
           key: "Name",
-          value: "my-ec2-role",
+          value: "api-docs-ec2-role",
         },
       ],
     })
@@ -146,7 +170,7 @@ export class ApiDocsCdkStack extends cdk.Stack {
       this,
       "ApiDocsEc2InstanceProfile",
       {
-        instanceProfileName: "myInstanceProfile",
+        instanceProfileName: "api-docs-ec2-instance-profile",
         roles: [apiDocsEc2Role.ref],
       }
     )
@@ -157,17 +181,19 @@ export class ApiDocsCdkStack extends cdk.Stack {
       keyName: "api-docs",
       securityGroupIds: [apiDocsEc2SecurityGroup.ref],
       iamInstanceProfile: apiDocsEc2InstanceProfile.ref,
-      //userData: readFileSync("./lib/user-data.sh", "base64"),
-      userData: Buffer.from(
+      userData: readFileSync("./lib/user-data.sh", "base64"),
+      /*userData: Buffer.from(
         readFileSync("./lib/user-data.sh", "utf-8").replace("_REPO_", repo)
-      ).toString("base64"),
+      ).toString("base64"),*/
       tags: [
         {
           key: "Name",
-          value: "api-docs-ec2",
+          value: "api-docs-ec2-instance",
         },
       ],
     })
+
+    apiDocsEc2Instance.node.addDependency(apiDocsAppDataDeployment)
 
     // Outputs
     this.publicIp = apiDocsEc2Instance.attrPublicIp
