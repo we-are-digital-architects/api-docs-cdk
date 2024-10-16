@@ -19,4 +19,3 @@ chmod +x -R /home/ec2-user/app/{.,}*
 sed -i -e s/0.0.0.0/"$(curl -s ifconfig.me)"/g /home/ec2-user/app/.env
 cd /home/ec2-user/app/ && make init
 docker-compose up --build
-# wget -O /home/ec2-user/app/archive.zip _REPO_.zip

@@ -4,9 +4,8 @@ import * as s3 from "aws-cdk-lib/aws-s3"
 import * as s3Deployment from "aws-cdk-lib/aws-s3-deployment"
 import * as iam from "aws-cdk-lib/aws-iam"
 import { readFileSync } from "fs"
-/* import * as s3n from "aws-cdk-lib/aws-s3-notifications"
-import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources"*/
 import * as lambda from "aws-cdk-lib/aws-lambda"
+import * as s3n from "aws-cdk-lib/aws-s3-notifications"
 
 export interface ApiDocsCdkStackProps extends cdk.StackProps {}
 
@@ -88,33 +87,54 @@ export class ApiDocsCdkStack extends cdk.Stack {
       }
     )
 
-    const apiDocsS3Bucket = new s3.CfnBucket(this, "ApiDocsS3Bucket", {
-      bucketName: "api-docs-s3-bucket",
-      publicAccessBlockConfiguration: {
+    const apiDocsOAS = new s3.Bucket(this, "ApiDocsAppOAS", {
+      bucketName: "api-docs-oas",
+      publicReadAccess: true,
+      blockPublicAccess: {
         blockPublicAcls: false,
         blockPublicPolicy: false,
         ignorePublicAcls: false,
         restrictPublicBuckets: false,
       },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     })
 
-    const apiDocsS3BucketPolicy = new s3.CfnBucketPolicy(
-      this,
-      "ApiDocsS3BucketPolicy",
-      {
-        bucket: apiDocsS3Bucket.ref,
-        policyDocument: {
-          Version: "2012-10-17",
-          Statement: [
-            {
-              Effect: "Allow",
-              Principal: "*",
-              Action: "s3:GetObject",
-              Resource: ["arn:aws:s3:::", apiDocsS3Bucket.ref, "/*"].join(""),
-            },
-          ],
-        },
-      }
+    // Simple Lambda function that triggers when a new object is uploaded to the S3 bucket
+    const lambdaFunction = new lambda.Function(this, "S3ObjectUploadHandler", {
+      runtime: lambda.Runtime.NODEJS_16_X, // Lambda execution runtime
+      handler: "syncOASS3ToEC2.handler", // Points to the handler in the Lambda code
+      code: lambda.Code.fromAsset("lambda"),
+    })
+    // Grant Lambda permission to send SSM commands and access the S3 bucket
+    lambdaFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:SendCommand"],
+        resources: ["*"], // You can restrict this to your EC2 instance
+      })
+    )
+
+    lambdaFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:GetObject"],
+        resources: [apiDocsOAS.bucketArn + "/*"], // Allow access to objects in the S3 bucket
+      })
+    )
+
+    lambdaFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ec2:DescribeInstances"],
+        resources: ["*"], // Allow the Lambda function to describe EC2 instances
+      })
+    )
+    apiDocsOAS.grantRead(lambdaFunction)
+
+    // Add event notification for when a new object is created in the S3 bucket
+    apiDocsOAS.addEventNotification(
+      s3.EventType.OBJECT_CREATED, // React to new object creation
+      new s3n.LambdaDestination(lambdaFunction) // Trigger the Lambda function
     )
 
     const apiDocsAppData = new s3.Bucket(this, "ApiDocsAppData", {
